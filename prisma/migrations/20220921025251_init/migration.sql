@@ -1,7 +1,7 @@
 -- CreateTable
 CREATE TABLE "Document" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "name" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
     "contentB64" TEXT NOT NULL
 );
 

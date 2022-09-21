@@ -39,3 +39,7 @@ lerna-debug.log*
 
 # prisma
 prisma/dev.db
+
+# files
+files/*
+!files/README.md

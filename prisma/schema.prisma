@@ -12,7 +12,7 @@ datasource db {
 
 model Document {
   id         Int      @id @default(autoincrement())
-  name       String
+  title      String
   contentB64 String
   signers    Signer[]
 }
