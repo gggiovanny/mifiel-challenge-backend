@@ -6,4 +6,7 @@ export class CreateDocument {
 
   @IsNotEmpty()
   content: string;
+
+  @IsNotEmpty()
+  callback_url: string;
 }

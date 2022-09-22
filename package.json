@@ -25,6 +25,9 @@
     "viewdb": "npx prisma studio"
   },
   "dependencies": {
+    "@mifiel/api-client": "^0.2.1",
+    "@mifiel/api-client-auth": "^0.2.1",
+    "@mifiel/models": "^0.1.0",
     "@nestjs/common": "^9.0.0",
     "@nestjs/core": "^9.0.0",
     "@nestjs/platform-express": "^9.0.0",
@@ -33,6 +36,7 @@
     "@types/uniqid": "^5.3.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.13.2",
+    "dotenv": "^16.0.2",
     "lodash": "^4.17.21",
     "npm-run-all": "^4.1.5",
     "pdfkit": "^0.13.0",
@@ -86,8 +90,5 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
-  },
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
   }
 }

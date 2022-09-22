@@ -1,13 +1,14 @@
+import { createWriteStream, readFile } from 'fs';
 import * as PDFDocument from 'pdfkit';
 
 export default (
   title: string,
   content: string,
-  destination: NodeJS.WritableStream,
-) =>
+  pdfPath: string,
+): Promise<Buffer> =>
   new Promise(resolve => {
     const doc = new PDFDocument();
-    const stream = doc.pipe(destination);
+    const stream = doc.pipe(createWriteStream(pdfPath));
 
     doc
       .fontSize(25)
@@ -24,6 +25,8 @@ export default (
     doc.end();
 
     stream.on('finish', () => {
-      resolve(true);
+      readFile(pdfPath, (err, fileBuffer) => {
+        resolve(fileBuffer);
+      });
     });
   });

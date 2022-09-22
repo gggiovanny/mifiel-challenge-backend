@@ -1,9 +1,3 @@
-import { readFileSync, unlinkSync } from 'fs';
+import { readFileSync } from 'fs';
 
-export default function (filePath: string, deleteFile = true) {
-  const fileB64 = readFileSync(filePath, 'base64');
-
-  if (deleteFile) unlinkSync(filePath);
-
-  return fileB64;
-}
+export default (filePath: string) => readFileSync(filePath, 'base64');

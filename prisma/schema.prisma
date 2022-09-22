@@ -11,16 +11,6 @@ datasource db {
 }
 
 model Document {
-  id         Int      @id @default(autoincrement())
-  title      String
-  contentB64 String
-  signers    Signer[]
-}
-
-model Signer {
-  id         Int       @id @default(autoincrement())
-  name       String
-  hasSigned  Boolean   @default(false)
-  Document   Document? @relation(fields: [documentId], references: [id])
-  documentId Int?
+  id       String @id
+  mifielId String
 }
