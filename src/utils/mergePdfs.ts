@@ -1,9 +1,7 @@
 import PDFMerger from 'pdf-merger-js';
 
-type InputFile = string | Buffer | ArrayBuffer;
-
 export default async function (
-  inputPdfs: [InputFile, InputFile],
+  inputPdfs: [string, string],
   outputPath: string,
 ) {
   const merger = new PDFMerger();

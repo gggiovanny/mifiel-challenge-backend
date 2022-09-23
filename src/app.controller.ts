@@ -102,15 +102,25 @@ export class AppController {
         throw new Error('No local document found');
       }
 
+      // creating all files involved paths
       const originalPdfPath = getFilePath(localDocument.id, 'original', 'pdf');
       const signedPdfPath = getFilePath(localDocument.id, 'signed', 'pdf');
+      const signedPagePath = getFilePath(
+        localDocument.id,
+        'signed-page-only',
+        'pdf',
+      );
 
-      const signedPageBuffer = await Document.getFile({
+      // fetching the signed page
+      await Document.saveFile({
         type: 'file_signed',
         documentId: mifielId,
+        path: signedPagePath,
       });
 
-      await mergePdfs([originalPdfPath, signedPageBuffer], signedPdfPath);
+      // merging the signed page with the original pdf
+      await mergePdfs([originalPdfPath, signedPagePath], signedPdfPath);
+      unlinkSync(signedPagePath);
 
       // TODO: remove, just temp saving original xml to test the PDF -> XML merge
       Document.saveFile({
