@@ -1,14 +1,27 @@
 import { Document } from '@mifiel/api-client';
-import { Body, Controller, Get, ParseArrayPipe, Post } from '@nestjs/common';
+import { DocumentResponse } from '@mifiel/models';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpException,
+  HttpStatus,
+  ParseArrayPipe,
+  Post,
+} from '@nestjs/common';
 import { unlinkSync } from 'fs';
 import { kebabCase } from 'lodash';
-import * as uniqid from 'uniqid';
+import uniqid from 'uniqid';
 
 import { PrismaService } from './prisma.service';
-import { GetDocumentsResponse } from './types/documents';
+import {
+  GetDocumentsResponse,
+  OnCreateDocumentPayload,
+} from './types/documents';
 import base64Encode from './utils/base64Encode';
 import createPdf from './utils/createPdf';
-import getOriginalPdfPath from './utils/getOriginalPdfPath';
+import getFilePath from './utils/getFilePath';
+import mergePdfs from './utils/mergePdfs';
 import { CreateDocument } from './validators/CreateDocument';
 import { Signatory } from './validators/Signatory';
 
@@ -21,16 +34,16 @@ export class AppController {
     @Body() body: CreateDocument,
     @Body('signatories', new ParseArrayPipe({ items: Signatory }))
     signatories: Signatory[],
-  ) {
+  ): Promise<DocumentResponse> {
     const { title, content, callback_url } = body;
     const id = uniqid();
-    const pdfPath = getOriginalPdfPath(id);
+    const pdfPath = getFilePath(id, 'original', 'pdf');
 
-    const pdfFileBuffer = await createPdf(title, content, pdfPath);
+    await createPdf(title, content, pdfPath);
 
     // registers the document on mifiel
     const newMifielDocument = await Document.create({
-      original_hash: await Document.getHash(pdfFileBuffer),
+      original_hash: await Document.getHash(pdfPath),
       name: `${kebabCase(title)}.pdf`,
       signatories,
       callback_url,
@@ -59,14 +72,58 @@ export class AppController {
         where: { mifielId: doc.id },
       });
 
-      if (!localDocument) break;
-
-      response.push({
-        ...doc,
-        pdf_original_b64: base64Encode(getOriginalPdfPath(localDocument.id)),
-      });
+      response.push(
+        localDocument
+          ? {
+              ...doc,
+              pdf_original_b64: base64Encode(
+                getFilePath(localDocument.id, 'original', 'pdf'),
+              ),
+            }
+          : doc,
+      );
     }
 
     return response;
+  }
+
+  @Post('on-document-signed')
+  async onDocumentSigned(@Body() body: OnCreateDocumentPayload) {
+    try {
+      const { id: mifielId } = body;
+      // eslint-disable-next-line no-console
+      console.log('onDocumentSigned body', body);
+
+      const localDocument = await this.prismaService.document.findFirst({
+        where: { mifielId },
+      });
+
+      if (!localDocument) {
+        throw new Error('No local document found');
+      }
+
+      const originalPdfPath = getFilePath(localDocument.id, 'original', 'pdf');
+      const signedPdfPath = getFilePath(localDocument.id, 'signed', 'pdf');
+
+      const signedPageBuffer = await Document.getFile({
+        type: 'file_signed',
+        documentId: mifielId,
+      });
+
+      await mergePdfs([originalPdfPath, signedPageBuffer], signedPdfPath);
+
+      // TODO: remove, just temp saving original xml to test the PDF -> XML merge
+      Document.saveFile({
+        type: 'xml',
+        documentId: mifielId,
+        path: getFilePath(localDocument.id, 'original', 'xml'),
+      });
+
+      return { signedPdfPath };
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error(error);
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 }
