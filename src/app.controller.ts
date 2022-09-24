@@ -76,7 +76,7 @@ export class AppController {
         localDocument
           ? {
               ...doc,
-              pdf_original_b64: base64Encode(
+              file_b64: base64Encode(
                 getFilePath(localDocument.id, 'original', 'pdf'),
               ),
             }

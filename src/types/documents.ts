@@ -1,7 +1,7 @@
 import { DocumentResponse } from '@mifiel/models';
 
 export type GetDocumentsResponse = Array<
-  DocumentResponse & { pdf_original_b64?: string }
+  DocumentResponse & { file_b64?: string }
 >;
 
 type Signer = DocumentResponse['signers'];
