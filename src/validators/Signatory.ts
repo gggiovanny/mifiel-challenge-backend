@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class Signatory {
   @IsNotEmpty()
@@ -7,6 +7,6 @@ export class Signatory {
   @IsEmail()
   email: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   tax_id: string;
 }

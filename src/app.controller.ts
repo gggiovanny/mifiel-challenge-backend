@@ -6,7 +6,6 @@ import {
   Get,
   HttpException,
   HttpStatus,
-  ParseArrayPipe,
   Post,
 } from '@nestjs/common';
 import { unlinkSync } from 'fs';
@@ -24,7 +23,6 @@ import createPdf from './utils/createPdf';
 import getFilePath from './utils/getFilePath';
 import mergePdfs from './utils/mergePdfs';
 import { CreateDocument } from './validators/CreateDocument';
-import { Signatory } from './validators/Signatory';
 
 @Controller()
 export class AppController {
@@ -34,34 +32,38 @@ export class AppController {
   @FormDataRequest()
   async createDocument(
     @Body() body: CreateDocument,
-    @Body('signatories', new ParseArrayPipe({ items: Signatory }))
-    signatories: Signatory[],
-  ): Promise<DocumentResponse> {
-    const { title, content, callback_url } = body;
-    const id = uniqid();
-    const pdfPath = getFilePath(id, 'original', 'pdf');
+  ): Promise<DocumentResponse | HttpException> {
+    try {
+      const { title, content, callback_url, signatories } = body;
+      const id = uniqid();
+      const pdfPath = getFilePath(id, 'original', 'pdf');
 
-    await createPdf(title, content, pdfPath);
+      await createPdf(title, content, pdfPath);
 
-    // registers the document on mifiel
-    const newMifielDocument = await Document.create({
-      original_hash: await Document.getHash(pdfPath),
-      name: `${kebabCase(title)}.pdf`,
-      signatories,
-      callback_url,
-    });
-
-    if (newMifielDocument.id) {
-      // links the mifiel document with the local stored pdf file
-      await this.prismaService.document.create({
-        data: { id, mifielId: newMifielDocument.id },
+      // registers the document on mifiel
+      const newMifielDocument = await Document.create({
+        original_hash: await Document.getHash(pdfPath),
+        name: `${kebabCase(title)}.pdf`,
+        signatories,
+        callback_url,
       });
-    } else {
-      // deletes the pdf file
-      unlinkSync(pdfPath);
-    }
 
-    return newMifielDocument;
+      if (newMifielDocument.id) {
+        // links the mifiel document with the local stored pdf file
+        await this.prismaService.document.create({
+          data: { id, mifielId: newMifielDocument.id },
+        });
+      } else {
+        // deletes the pdf file
+        unlinkSync(pdfPath);
+      }
+
+      return newMifielDocument;
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error(error);
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   @Get('documents')
@@ -91,7 +93,9 @@ export class AppController {
 
   @Post('on-document-signed')
   @FormDataRequest()
-  async onDocumentSigned(@Body() body: OnCreateDocumentPayload) {
+  async onDocumentSigned(
+    @Body() body: OnCreateDocumentPayload,
+  ): Promise<{ signedPdfPath: string } | HttpException> {
     try {
       const { id: mifielId } = body;
       // eslint-disable-next-line no-console
