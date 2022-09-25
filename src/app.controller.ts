@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { unlinkSync } from 'fs';
 import { kebabCase } from 'lodash';
+import { FormDataRequest } from 'nestjs-form-data';
 import uniqid from 'uniqid';
 
 import { PrismaService } from './prisma.service';
@@ -30,6 +31,7 @@ export class AppController {
   constructor(private readonly prismaService: PrismaService) {}
 
   @Post('documents')
+  @FormDataRequest()
   async createDocument(
     @Body() body: CreateDocument,
     @Body('signatories', new ParseArrayPipe({ items: Signatory }))
@@ -88,6 +90,7 @@ export class AppController {
   }
 
   @Post('on-document-signed')
+  @FormDataRequest()
   async onDocumentSigned(@Body() body: OnCreateDocumentPayload) {
     try {
       const { id: mifielId } = body;
