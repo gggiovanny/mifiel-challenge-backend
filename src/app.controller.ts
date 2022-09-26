@@ -20,6 +20,7 @@ import {
 } from './types/documents';
 import base64Encode from './utils/base64Encode';
 import createPdf from './utils/createPdf';
+import createXmlWithPdf from './utils/createXmlWithPdf';
 import getFilePath from './utils/getFilePath';
 import mergePdfs from './utils/mergePdfs';
 import { CreateDocument } from './validators/CreateDocument';
@@ -95,7 +96,7 @@ export class AppController {
   @FormDataRequest()
   async onDocumentSigned(
     @Body() body: OnCreateDocumentPayload,
-  ): Promise<{ signedPdfPath: string } | HttpException> {
+  ): Promise<{ signedPdfPath: string; signedXmlPath: string } | HttpException> {
     try {
       const { id: mifielId } = body;
       // eslint-disable-next-line no-console
@@ -117,26 +118,32 @@ export class AppController {
         'signed-page-only',
         'pdf',
       );
+      const originalXmlPath = getFilePath(localDocument.id, 'original', 'xml');
+      const signedXmlPath = getFilePath(localDocument.id, 'signed', 'xml');
 
-      // fetching the signed page
+      // saving the signed page and the xml with no file content
       await Document.saveFile({
         type: 'file_signed',
         documentId: mifielId,
         path: signedPagePath,
+      });
+      await Document.saveFile({
+        type: 'xml',
+        documentId: mifielId,
+        path: originalXmlPath,
       });
 
       // merging the signed page with the original pdf
       await mergePdfs([originalPdfPath, signedPagePath], signedPdfPath);
       unlinkSync(signedPagePath);
 
-      // TODO: remove, just temp saving original xml to test the PDF -> XML merge
-      Document.saveFile({
-        type: 'xml',
-        documentId: mifielId,
-        path: getFilePath(localDocument.id, 'original', 'xml'),
+      createXmlWithPdf({
+        originalPdfPath,
+        originalXmlPath,
+        outputXmlPath: signedXmlPath,
       });
 
-      return { signedPdfPath };
+      return { signedPdfPath, signedXmlPath };
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error(error);
