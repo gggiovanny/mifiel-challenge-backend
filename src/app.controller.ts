@@ -140,7 +140,11 @@ export class AppController {
       });
 
       // merging the signed page with the original pdf
-      await mergePdfs([originalPdfPath, signedPagePath], signedPdfPath);
+      await mergePdfs({
+        originalPdfPath,
+        signedPagePath,
+        outputPath: signedPdfPath,
+      });
       unlinkSync(signedPagePath);
 
       createXmlWithPdf({
