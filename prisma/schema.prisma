@@ -11,6 +11,7 @@ datasource db {
 }
 
 model Document {
-  id       String @id
+  id       String  @id
   mifielId String
+  fileB64  String?
 }

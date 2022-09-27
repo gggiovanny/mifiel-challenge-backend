@@ -1,8 +1,6 @@
 import { XMLBuilder, XMLParser } from 'fast-xml-parser';
 import { readFileSync, writeFileSync } from 'fs';
 
-import base64Encode from './base64Encode';
-
 const xmlOptions = {
   ignoreAttributes: false,
   preserveOrder: true,
@@ -11,13 +9,13 @@ const xmlOptions = {
 
 type Params = {
   originalXmlPath: string;
-  originalPdfPath: string;
+  originalPdfBase64: string;
   outputXmlPath: string;
 };
 
 export default function ({
   originalXmlPath,
-  originalPdfPath,
+  originalPdfBase64,
   outputXmlPath,
 }: Params) {
   const xmlTextContent = readFileSync(originalXmlPath);
@@ -25,8 +23,7 @@ export default function ({
   // parses xml as a javascript object and ads the pdf as a base64 string
   const parser = new XMLParser(xmlOptions);
   const jObj = parser.parse(xmlTextContent);
-  jObj[1].electronicDocument[0].file[0]['#text'] =
-    base64Encode(originalPdfPath);
+  jObj[1].electronicDocument[0].file[0]['#text'] = originalPdfBase64;
 
   // converts the file to xml again and stores it to a file
   const builder = new XMLBuilder(xmlOptions);

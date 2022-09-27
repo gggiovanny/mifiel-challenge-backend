@@ -47,17 +47,22 @@ export class AppController {
       await createPdf(title, content, pdfPath);
 
       // registers the document on mifiel
+      const original_hash = await Document.getHash(pdfPath);
       const newMifielDocument = await Document.create({
-        original_hash: await Document.getHash(pdfPath),
+        original_hash,
         name: `${title}.pdf`,
         signatories,
         callback_url,
       });
 
       if (newMifielDocument.id) {
-        // links the mifiel document with the local stored pdf file
+        // stores the b64 version of the file and link the mifielId with a local one
         await this.prismaService.document.create({
-          data: { id, mifielId: newMifielDocument.id },
+          data: {
+            id,
+            mifielId: newMifielDocument.id,
+            fileB64: base64Encode(pdfPath),
+          },
         });
       } else {
         // deletes the pdf file
@@ -77,21 +82,19 @@ export class AppController {
     const mifielDocuments = await Document.all();
     const response: GetDocumentsResponse = [];
 
-    for (const doc of mifielDocuments) {
+    for (const mifielDoc of mifielDocuments) {
       const localDocument = await this.prismaService.document.findFirst({
-        where: { mifielId: doc.id },
+        where: { mifielId: mifielDoc.id },
       });
 
       response.push(
         localDocument
           ? {
-              ...doc,
-              file_b64: base64Encode(
-                getFilePath(localDocument.id, 'original', 'pdf'),
-              ),
+              ...mifielDoc,
+              file_b64: localDocument.fileB64,
               localDocumentId: localDocument.id,
             }
-          : doc,
+          : mifielDoc,
       );
     }
 
@@ -147,10 +150,19 @@ export class AppController {
       });
       unlinkSync(signedPagePath);
 
+      // adding the pdf data on the XML
       createXmlWithPdf({
-        originalPdfPath,
+        originalPdfBase64: localDocument.fileB64 as string,
         originalXmlPath,
         outputXmlPath: signedXmlPath,
+      });
+
+      // deletes the base64 dats, since it will be no longer needed after the sign process
+      await this.prismaService.document.update({
+        where: { id: localDocument.id },
+        data: {
+          fileB64: null,
+        },
       });
 
       return { signedPdfPath, signedXmlPath };
