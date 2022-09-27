@@ -6,13 +6,17 @@ import {
   Get,
   HttpException,
   HttpStatus,
+  Param,
   Post,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
-import { unlinkSync } from 'fs';
-import { kebabCase } from 'lodash';
+import type { Response } from 'express';
+import { readFileSync, unlinkSync } from 'fs';
 import { FormDataRequest } from 'nestjs-form-data';
 import uniqid from 'uniqid';
 
+import { fileTypeConfig } from './constants/documents';
 import { PrismaService } from './prisma.service';
 import {
   GetDocumentsResponse,
@@ -21,9 +25,10 @@ import {
 import base64Encode from './utils/base64Encode';
 import createPdf from './utils/createPdf';
 import createXmlWithPdf from './utils/createXmlWithPdf';
-import getFilePath from './utils/getFilePath';
+import getFilePath, { getFileName } from './utils/getFilePath';
 import mergePdfs from './utils/mergePdfs';
 import { CreateDocument } from './validators/CreateDocument';
+import { DownloadFileParams } from './validators/DownloadFileParams';
 
 @Controller()
 export class AppController {
@@ -44,7 +49,7 @@ export class AppController {
       // registers the document on mifiel
       const newMifielDocument = await Document.create({
         original_hash: await Document.getHash(pdfPath),
-        name: `${kebabCase(title)}.pdf`,
+        name: `${title}.pdf`,
         signatories,
         callback_url,
       });
@@ -84,6 +89,7 @@ export class AppController {
               file_b64: base64Encode(
                 getFilePath(localDocument.id, 'original', 'pdf'),
               ),
+              localDocumentId: localDocument.id,
             }
           : doc,
       );
@@ -148,6 +154,39 @@ export class AppController {
       // eslint-disable-next-line no-console
       console.error(error);
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Get('documents/:id/:fileType')
+  async downloadFile(
+    @Param() params: DownloadFileParams,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const { id, fileType } = params;
+    const { type, extension, mifielType } = fileTypeConfig[fileType];
+
+    const filePath = getFilePath(id, type, extension);
+    const fileName = getFileName(id, type, extension);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${fileName}"`,
+    });
+
+    try {
+      const file = readFileSync(filePath);
+      return new StreamableFile(file);
+    } catch (_error) {
+      try {
+        await Document.saveFile({
+          type: mifielType,
+          documentId: id,
+          path: filePath,
+        });
+        const file = readFileSync(filePath);
+        return new StreamableFile(file);
+      } catch (_error) {
+        throw new HttpException('File not found', HttpStatus.NOT_FOUND);
+      }
     }
   }
 }
